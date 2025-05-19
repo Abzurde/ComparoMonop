@@ -43,9 +43,9 @@ if uploaded_file:
 
     # Fusion et séparations
     merged = pd.merge(df_inv, df_rec, on='Code article', how='outer', suffixes=('_Inv', '_Rec'), indicator=True)
-    df_both = merged[merged['merge'] == 'both']
-    df_only_inv = merged[merged['merge'] == 'Seulement Inventaire']
-    df_only_rec = merged[merged['merge'] == 'Seulement Reception']
+    df_both = merged[merged['Appartenance'] == 'Dans les deux feuilles']
+    df_only_inv = merged[merged['Appartenance'] == 'Seulement Inventaire']
+    df_only_rec = merged[merged['Appartenance'] == 'Seulement Reception']
 
     # Affichage
     tab1, tab2, tab3 = st.tabs(["Articles communs", "Uniquement Inventaire", "Uniquement Réception"])
