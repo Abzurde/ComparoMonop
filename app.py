@@ -11,9 +11,6 @@ st.markdown(
     **Téléversez un fichier Excel** contenant deux onglets nommés `Inventaire` et `Reception`.
     Chaque onglet doit comporter au moins les colonnes `Code article`, `Libelle` et la quantité
     (`Qte inventaire` pour Inventaire, `Qte recue (UVC)` pour Réception).
-
-    **⚙️ Assurez-vous que le package `openpyxl` est listé** dans votre `requirements.txt`
-    pour la prise en charge de la lecture des fichiers `.xlsx`.
     """
 )
 
@@ -21,7 +18,6 @@ uploaded_file = st.file_uploader("📂 Fichier Excel", type=["xlsx"], accept_mul
 
 if uploaded_file:
     try:
-        # Lecture directe des feuilles avec openpyxl
         inventaire_df = pd.read_excel(uploaded_file, sheet_name="Inventaire", engine='openpyxl')
         reception_df = pd.read_excel(uploaded_file, sheet_name="Reception", engine='openpyxl')
     except Exception as e:
@@ -30,55 +26,48 @@ if uploaded_file:
                  "et que le package `openpyxl` est installé.")
         st.stop()
 
-    # Nettoyer noms colonnes
+    # Nettoyage des colonnes
     inventaire_df.columns = inventaire_df.columns.str.strip()
     reception_df.columns = reception_df.columns.str.strip()
 
-    # Fonction nettoyage libellé
+    # Nettoyage des libellés
     def nettoyer_libelle(libelle):
         return re.sub(r'^(?:[A-Za-z]\d+\s*)+', '', str(libelle)).strip()
 
-    for df in (inventaire_df, reception_df):
-        df['Libelle_nettoye'] = df.get('Libelle', '').apply(nettoyer_libelle)
+    inventaire_df['Libelle_nettoye'] = inventaire_df.get('Libelle', '').apply(nettoyer_libelle)
+    reception_df['Libelle_nettoye'] = reception_df.get('Libelle', '').apply(nettoyer_libelle)
 
-    # Préparation
-    inv = inventaire_df.rename(columns={'Qte inventaire': 'Qty_Inv'})
-    inv = inv[['Code article', 'Libelle_nettoye', 'Qty_Inv']]
-    rec = reception_df.rename(columns={'Qte recue (UVC)': 'Qty_Rec'})
-    rec = rec[['Code article', 'Libelle_nettoye', 'Qty_Rec']]
+    # Préparation des DataFrames
+    df_inv = inventaire_df.rename(columns={'Qte inventaire': 'Qty_Inv'})[['Code article', 'Libelle_nettoye', 'Qty_Inv']]
+    df_rec = reception_df.rename(columns={'Qte recue (UVC)': 'Qty_Rec'})[['Code article', 'Libelle_nettoye', 'Qty_Rec']]
 
-    # Fusion
-    merged = pd.merge(inv, rec, on='Code article', how='outer', suffixes=('_Inv', '_Rec'), indicator=True)
+    # Fusion et séparations
+    merged = pd.merge(df_inv, df_rec, on='Code article', how='outer', suffixes=('_Inv', '_Rec'), indicator=True)
+    df_both = merged[merged['_merge'] == 'both']
+    df_only_inv = merged[merged['_merge'] == 'left_only']
+    df_only_rec = merged[merged['_merge'] == 'right_only']
 
-    # Séparations
-    both = merged[merged['_merge'] == 'both'].copy()
-    only_inv = merged[merged['_merge'] == 'left_only'].copy()
-    only_rec = merged[merged['_merge'] == 'right_only'].copy()
-
-    # Affichage dans onglets
+    # Affichage
     tab1, tab2, tab3 = st.tabs(["Articles communs", "Uniquement Inventaire", "Uniquement Réception"])
     with tab1:
-        st.subheader("Articles présents dans les deux onglets")
-        st.dataframe(both.reset_index(drop=True))
+        st.dataframe(df_both.reset_index(drop=True))
     with tab2:
-        st.subheader("Articles présents seulement en Inventaire")
-        st.dataframe(only_inv.reset_index(drop=True))
+        st.dataframe(df_only_inv.reset_index(drop=True))
     with tab3:
-        st.subheader("Articles présents seulement en Réception")
-        st.dataframe(only_rec.reset_index(drop=True))
+        st.dataframe(df_only_rec.reset_index(drop=True))
 
-    # Export Excel
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        both.to_excel(writer, sheet_name='Commun', index=False)
-        only_inv.to_excel(writer, sheet_name='Inventaire_only', index=False)
-        only_rec.to_excel(writer, sheet_name='Reception_only', index=False)
-        writer.save()
-    processed_data = output.getvalue()
+    # Export Excel avec 3 feuilles
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_both.to_excel(writer, sheet_name='Articles_communs', index=False)
+        df_only_inv.to_excel(writer, sheet_name='Inventaire_uniquement', index=False)
+        df_only_rec.to_excel(writer, sheet_name='Reception_uniquement', index=False)
+    buffer.seek(0)
+    excel_data = buffer.read()
 
     st.download_button(
-        label="⬇️ Télécharger le rapport Excel",
-        data=processed_data,
+        label="⬇️ Télécharger le rapport Excel (3 feuilles)",
+        data=excel_data,
         file_name="Comparaison_Inventaire_Reception.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
