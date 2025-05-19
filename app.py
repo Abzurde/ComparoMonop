@@ -15,7 +15,7 @@ st.markdown(
     """
     **Téléversez un fichier Excel** contenant deux onglets nommés `Inventaire` et `Reception`.
     Chaque onglet doit comporter au moins les colonnes `Code article`, `Libelle` et la quantité
-    (`Qte inventaire` pour Inventaire, `Qte recue (UVC)` pour Réception).
+    (`Qte inventaire` pour Inventaire, `Qte recue (UVC)` pour Réception). By Ravand.S
     """
 )
 
