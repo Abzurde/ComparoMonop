@@ -3,7 +3,7 @@ import pandas as pd
 import re
 from io import BytesIO
 
-st.set_page_config(page_title="Comparateur Inventaire vs Réception Monoprix", layout="wide")
+st.set_page_config(page_title="Comparateur Inventaire vs Réception", layout="wide")
 st.title("🔍 Comparaison Inventaire ↔ Réception")
 
 st.markdown(
@@ -41,11 +41,26 @@ if uploaded_file:
     df_inv = inventaire_df.rename(columns={'Qte inventaire': 'Qty_Inv'})[['Code article', 'Libelle_nettoye', 'Qty_Inv']]
     df_rec = reception_df.rename(columns={'Qte recue (UVC)': 'Qty_Rec'})[['Code article', 'Libelle_nettoye', 'Qty_Rec']]
 
-    # Fusion et séparations
-    merged = pd.merge(df_inv, df_rec, on='Code article', how='outer', suffixes=('_Inv', '_Rec'), indicator=True)
-    df_both = merged[merged['Appartenance'] == 'Dans les deux feuilles']
+    # Fusion avec renommage de l'indicateur
+    merged = pd.merge(
+        df_inv,
+        df_rec,
+        on='Code article',
+        how='outer',
+        suffixes=('_Inv', '_Rec'),
+        indicator='Appartenance'
+    )
+    # Recode les valeurs pour plus de lisibilité
+    merged['Appartenance'] = merged['Appartenance'].map({
+        'both': 'Commun',
+        'left_only': 'Seulement Inventaire',
+        'right_only': 'Seulement Réception'
+    })
+
+    # Séparation selon Appartenance
+    df_both = merged[merged['Appartenance'] == 'Commun']
     df_only_inv = merged[merged['Appartenance'] == 'Seulement Inventaire']
-    df_only_rec = merged[merged['Appartenance'] == 'Seulement Reception']
+    df_only_rec = merged[merged['Appartenance'] == 'Seulement Réception']
 
     # Affichage
     tab1, tab2, tab3 = st.tabs(["Articles communs", "Uniquement Inventaire", "Uniquement Réception"])
