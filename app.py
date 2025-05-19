@@ -3,7 +3,7 @@ import pandas as pd
 import re
 from io import BytesIO
 
-st.set_page_config(page_title="Comparateur Inventaire vs Réception", layout="wide")
+st.set_page_config(page_title="Comparateur Inventaire vs Réception Monoprix", layout="wide")
 st.title("🔍 Comparaison Inventaire ↔ Réception")
 
 st.markdown(
@@ -43,9 +43,9 @@ if uploaded_file:
 
     # Fusion et séparations
     merged = pd.merge(df_inv, df_rec, on='Code article', how='outer', suffixes=('_Inv', '_Rec'), indicator=True)
-    df_both = merged[merged['_merge'] == 'both']
-    df_only_inv = merged[merged['_merge'] == 'left_only']
-    df_only_rec = merged[merged['_merge'] == 'right_only']
+    df_both = merged[merged['merge'] == 'both']
+    df_only_inv = merged[merged['merge'] == 'Seulement Inventaire']
+    df_only_rec = merged[merged['merge'] == 'Seulement Reception']
 
     # Affichage
     tab1, tab2, tab3 = st.tabs(["Articles communs", "Uniquement Inventaire", "Uniquement Réception"])
