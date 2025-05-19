@@ -3,17 +3,24 @@ import pandas as pd
 import re
 from io import BytesIO
 
+# URL ou chemin vers le logo Monoprix (hébergé publiquement ou ajouté au repo)
+MONOPRIX_LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Logo_Monoprix.svg/320px-Logo_Monoprix.svg.png"
+
 st.set_page_config(page_title="Comparateur Inventaire vs Réception", layout="wide")
-st.title("🔍 Comparaison Inventaire ↔ Réception")
+# Affiche le logo
+st.image(MONOPRIX_LOGO_URL, width=150)
+# Titre sans l'icône par défaut
+st.title("Comparaison Inventaire ↔ Réception")
 
 st.markdown(
     """
     **Téléversez un fichier Excel** contenant deux onglets nommés `Inventaire` et `Reception`.
     Chaque onglet doit comporter au moins les colonnes `Code article`, `Libelle` et la quantité
-    (`Qte inventaire` pour Inventaire, `Qte recue (UVC)` pour Réception).
+    (`Qte inventaire` pour Inventaire, `Qte recue (UVC)` pour Réception). (By Ravand.S)
     """
 )
 
+# Uploader
 uploaded_file = st.file_uploader("📂 Fichier Excel", type=["xlsx"], accept_multiple_files=False)
 
 if uploaded_file:
@@ -21,8 +28,8 @@ if uploaded_file:
         inventaire_df = pd.read_excel(uploaded_file, sheet_name="Inventaire", engine='openpyxl')
         reception_df = pd.read_excel(uploaded_file, sheet_name="Reception", engine='openpyxl')
     except Exception as e:
-        st.error(f"Erreur de lecture du fichier Excel : {e}\n\n" +
-                 "Vérifiez que vos onglets sont nommés exactement `Inventaire` et `Reception`, " +
+        st.error(f"Erreur de lecture du fichier Excel : {e}\n\n"
+                 "Vérifiez que vos onglets sont nommés exactement `Inventaire` et `Reception`, "
                  "et que le package `openpyxl` est installé.")
         st.stop()
 
