@@ -4,7 +4,7 @@ import re
 from io import BytesIO
 
 # URL ou chemin vers le logo Monoprix (hébergé publiquement ou ajouté au repo)
-MONOPRIX_LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Logo_Monoprix.svg/320px-Logo_Monoprix.svg.png"
+LOGO_PATH = 'monoprix_logo.png'
 
 st.set_page_config(page_title="Comparateur Inventaire vs Réception", layout="wide")
 # Affiche le logo
