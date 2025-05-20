@@ -66,6 +66,8 @@ merged = pd.merge(
     suffixes=('_Inv','_Rec'),
     indicator='Appartenance'
 )
+merged['Qty_Inv'] = merged['Qty_Inv'].fillna(0).astype(int)
+merged['Qty_Rec'] = merged['Qty_Rec'].fillna(0).astype(int)
 merged['Appartenance'] = merged['Appartenance'].map({
     'both':'Commun',
     'left_only':'Seulement Inventaire',
