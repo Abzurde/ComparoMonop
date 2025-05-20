@@ -32,19 +32,25 @@ except Exception as e:
     st.stop()
 
 # Préparation
-for df in (inv_df, rec_df):
+def clean_df(df, qty_col):
+    df = df.copy()
     df.columns = df.columns.str.strip()
+    # Nettoyage libellé
     df['Libelle_nettoye'] = df.get('Libelle', '').apply(
         lambda x: re.sub(r'^(?:[A-Za-z]\d+\s*)+', '', str(x)).strip()
     )
+    df = df[['Code article', 'Libelle_nettoye', qty_col]].rename(columns={qty_col: qty_col.split()[0]})
+    # Convertit en int
+    df[qty_col.split()[0]] = pd.to_numeric(df[qty_col.split()[0]], errors='coerce').fillna(0).round().astype(int)
+    return df
 
-df_inv = inv_df.rename(columns={'Qte inventaire':'Qty_Inv'})[['Code article','Libelle_nettoye','Qty_Inv']]
-df_rec = rec_df.rename(columns={'Qte recue (UVC)':'Qty_Rec'})[['Code article','Libelle_nettoye','Qty_Rec']]
+df_inv = clean_df(inv_df, 'Qte inventaire')
+df_inv.rename(columns={'Libelle_nettoye':'Libelle_Inv', 'Qte':'Qty_Inv'}, inplace=True)
 
-# Convertit quantités en entier
-for df_q, col in [(df_inv,'Qty_Inv'), (df_rec,'Qty_Rec')]:
-    df_q[col] = pd.to_numeric(df_q[col], errors='coerce').fillna(0).astype(int)
+df_rec = clean_df(rec_df, 'Qte recue (UVC)')
+df_rec.rename(columns={'Libelle_nettoye':'Libelle_Rec', 'Qte':'Qty_Rec'}, inplace=True)
 
+# Fusion
 merged = pd.merge(
     df_inv, df_rec,
     on='Code article', how='outer',
@@ -56,25 +62,29 @@ merged['Appartenance'] = merged['Appartenance'].map({
     'left_only':'Seulement Inventaire',
     'right_only':'Seulement Réception'
 })
-merged['Diff'] = merged['Qty_Inv'] - merged['Qty_Rec']
+# Calcule et cast Diff
+df_merged = merged.copy()
+df_merged['Qty_Inv'] = df_merged['Qty_Inv'].fillna(0).astype(int)
+df_merged['Qty_Rec'] = df_merged['Qty_Rec'].fillna(0).astype(int)
+df_merged['Diff'] = df_merged['Qty_Inv'] - df_merged['Qty_Rec']
 
-# Filtre regex
+# Filtre regex: couvre code et libellés Inv/Rec
 regex = st.text_input("Recherche (regex) sur Code ou Libellé", "")
 if regex:
     try:
-        lib = merged['Libelle_nettoye'] if 'Libelle_nettoye' in merged else pd.Series(['']*len(merged))
         mask = (
-            merged['Code article'].astype(str).str.contains(regex, regex=True, na=False) |
-            lib.astype(str).str.contains(regex, regex=True, na=False)
+            df_merged['Code article'].astype(str).str.contains(regex, regex=True, na=False) |
+            df_merged['Libelle_Inv'].astype(str).str.contains(regex, regex=True, na=False) |
+            df_merged['Libelle_Rec'].astype(str).str.contains(regex, regex=True, na=False)
         )
-        merged = merged[mask]
+        df_merged = df_merged[mask]
     except re.error:
         st.warning("Expression régulière invalide.")
 
 # Séparation
-df_both = merged[merged['Appartenance']=='Commun']
-df_only_inv = merged[merged['Appartenance']=='Seulement Inventaire']
-df_only_rec = merged[merged['Appartenance']=='Seulement Réception']
+df_both = df_merged[df_merged['Appartenance']=='Commun']
+df_only_inv = df_merged[df_merged['Appartenance']=='Seulement Inventaire']
+df_only_rec = df_merged[df_merged['Appartenance']=='Seulement Réception']
 
 # Mise en évidence front
 def highlight(r): return ['background-color: #fff2ac' if r['Diff']!=0 else '' for _ in r]
@@ -98,9 +108,10 @@ with pd.ExcelWriter(buf, engine='xlsxwriter') as writer:
         fmt = wb.add_format({'bg_color':'#FFF2AC'})
         idx = df_sheet.columns.get_loc('Diff')
         col_letter = xl_col_to_name(idx)
-        # Applique la règle à chaque ligne
+        max_col = xl_col_to_name(len(df_sheet.columns)-1)
+        max_row = len(df_sheet) + 1
         ws.conditional_format(
-            f"A2:{xl_col_to_name(len(df_sheet.columns)-1)}{len(df_sheet)+1}",
+            f"A2:{max_col}{max_row}",
             {'type':'formula', 'criteria':f"=${col_letter}2<>0", 'format':fmt}
         )
 buf.seek(0)
